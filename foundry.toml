@@ -1,6 +1,7 @@
 [profile.default]
+solc_version = "0.8.25"
 extra_output = ["storageLayout"]
-optimizer_runs = 100_000_000
+optimizer_runs = 20000
 verbosity = 1
 via_ir = true
 
