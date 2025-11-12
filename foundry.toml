@@ -1,0 +1,18 @@
+[profile.default]
+extra_output = ["storageLayout"]
+optimizer_runs = 100_000_000
+verbosity = 1
+via_ir = true
+
+[profile.ci]
+verbosity = 4
+
+[lint]
+exclude_lints = ["mixed-case-variable", "mixed-case-function", "unaliased-plain-import", "screaming-snake-case-immutable", "incorrect-shift", "pascal-case-struct"]
+ignore = ["script/**/*", "test/**/*"]
+
+[rpc_endpoints]
+mainnet = "${RPC_URL_MAINNET}"
+
+[etherscan]
+mainnet = {key = "${ETHERSCAN_KEY}"}
