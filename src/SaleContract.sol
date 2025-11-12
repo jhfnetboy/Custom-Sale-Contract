@@ -32,23 +32,25 @@ contract SaleContract is Ownable, ReentrancyGuard {
     // Off-chain signature verifier address
     address public whitelistVerifier;
 
-    // --- Price Curve Parameters ---
+    // --- Slope-Driven Price Curve Parameters ---
+    uint256 public constant PRECISION = 1e36;
+    uint256 public constant INITIAL_PRICE_USD = 1_000_000; // $1.00
+
+    // Slopes are defined as USD price increase (6 decimals) per 10,000 GTokens (1e18 decimals)
+    // slope = (price_increase * PRECISION) / (token_amount)
+    uint256 public constant STAGE1_SLOPE = (25_000 * PRECISION) / (10_000 * 1e18);   // $0.025 per 10k tokens
+    uint256 public constant STAGE2_SLOPE = (50_000 * PRECISION) / (10_000 * 1e18);   // $0.05 per 10k tokens
+    uint256 public constant STAGE3_SLOPE = (30_000 * PRECISION) / (10_000 * 1e18);   // $0.03 per 10k tokens
+
     // These thresholds define the token sale stages.
     uint256 public constant STAGE1_TOKEN_LIMIT = 210_000 * 1e18;
     uint256 public constant STAGE2_TOKEN_LIMIT = 630_000 * 1e18; // 210k + 420k
     uint256 public constant TOTAL_TOKEN_LIMIT = 1_050_000 * 1e18; // Stage 1 + 2 + 3
 
-    // These parameters define the price at the start of each stage.
-    // Using 6 decimals for USD price representation (e.g., 1_000_000 means $1.00)
-    uint256 public constant STAGE1_BASE_PRICE_USD = 1_000_000; // $1.00
-    uint256 public constant STAGE2_BASE_PRICE_USD = 1_500_000; // $1.50
-    uint256 public constant STAGE3_BASE_PRICE_USD = 2_500_000; // $2.50
-
-    // Slopes for each stage. Represents the price increase (in USD with 6 decimals) per GToken sold.
-    // (endPrice - startPrice) / tokens_in_stage
-    uint256 public constant STAGE1_SLOPE = (500_000 * 1e18) / STAGE1_TOKEN_LIMIT; // ($1.5 - $1.0) / 210k
-    uint256 public constant STAGE2_SLOPE = (1_000_000 * 1e18) / (STAGE2_TOKEN_LIMIT - STAGE1_TOKEN_LIMIT); // ($2.5 - $1.5) / 420k
-    uint256 public constant STAGE3_SLOPE = (500_000 * 1e18) / (TOTAL_TOKEN_LIMIT - STAGE2_TOKEN_LIMIT); // ($3.0 - $2.5) / 420k
+    // Base prices for each stage are now calculated based on the slopes of previous stages
+    uint256 public constant STAGE2_BASE_PRICE_USD = INITIAL_PRICE_USD + (STAGE1_TOKEN_LIMIT * STAGE1_SLOPE) / PRECISION;
+    uint256 public constant STAGE3_BASE_PRICE_USD = STAGE2_BASE_PRICE_USD + ((STAGE2_TOKEN_LIMIT - STAGE1_TOKEN_LIMIT) * STAGE2_SLOPE) / PRECISION;
+    uint256 public constant CEILING_PRICE_USD = STAGE3_BASE_PRICE_USD + ((TOTAL_TOKEN_LIMIT - STAGE2_TOKEN_LIMIT) * STAGE3_SLOPE) / PRECISION;
 
     // =============================================================
     //                          EVENTS
@@ -79,17 +81,17 @@ contract SaleContract is Ownable, ReentrancyGuard {
         uint256 sold = tokensSold;
 
         if (sold >= TOTAL_TOKEN_LIMIT) {
-            return STAGE3_BASE_PRICE_USD + ((TOTAL_TOKEN_LIMIT - STAGE2_TOKEN_LIMIT) * STAGE3_SLOPE) / 1e18; // Return ceiling price
+            return CEILING_PRICE_USD; // Return calculated ceiling price
         }
 
         if (sold < STAGE1_TOKEN_LIMIT) {
-            return STAGE1_BASE_PRICE_USD + (sold * STAGE1_SLOPE) / 1e18;
+            return INITIAL_PRICE_USD + (sold * STAGE1_SLOPE) / PRECISION;
         } else if (sold < STAGE2_TOKEN_LIMIT) {
             uint256 soldInStage2 = sold - STAGE1_TOKEN_LIMIT;
-            return STAGE2_BASE_PRICE_USD + (soldInStage2 * STAGE2_SLOPE) / 1e18;
+            return STAGE2_BASE_PRICE_USD + (soldInStage2 * STAGE2_SLOPE) / PRECISION;
         } else {
             uint256 soldInStage3 = sold - STAGE2_TOKEN_LIMIT;
-            return STAGE3_BASE_PRICE_USD + (soldInStage3 * STAGE3_SLOPE) / 1e18;
+            return STAGE3_BASE_PRICE_USD + (soldInStage3 * STAGE3_SLOPE) / PRECISION;
         }
     }
 
@@ -101,11 +103,10 @@ contract SaleContract is Ownable, ReentrancyGuard {
      * @notice Main function to purchase GTokens.
      * @param _usdAmount The amount in USD (with 6 decimals) the user wants to spend.
      * @param _paymentToken The address of the ERC20 token to pay with (e.g., USDC, USDT, WBTC).
-     * @param _signature The EIP-712 signature from the off-chain verifier.
      *
      * TODO: Implement the full logic for the function.
      */
-    function buyTokens(uint256 _usdAmount, address _paymentToken, bytes calldata _signature)
+    function buyTokens(uint256 _usdAmount, address _paymentToken, bytes calldata /* _signature */)
         external
         payable
         nonReentrant
