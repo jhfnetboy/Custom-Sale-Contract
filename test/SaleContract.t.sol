@@ -270,11 +270,11 @@ contract SaleContractTest is Test {
         setTokensSold(STAGE1_TOKEN_LIMIT);
         uint256 priceAtStartOfStage2 = saleContract.getCurrentPriceUSD();
 
-        // The difference should be minimal since we moved just 1 token
-        // The slope calculation: price_increase = (1 * 25_000 * PRECISION) / (10_000 * 1e18)
-        // Which simplifies to approximately 1 wei of USD price
+        // With the new calculation, the price increases in steps of 10,000 tokens
+        // Moving from 209,999 to 210,000 tokens crosses a 10,000 token boundary
+        // So the price difference should be exactly 25,000 ($0.025)
         uint256 priceDiff = priceAtStartOfStage2 - priceAtEndOfStage1;
-        assertEq(priceDiff, 1); // Minimal increase for 1 token crossing the boundary
+        assertEq(priceDiff, 25_000); // Price increase at 10k token boundary
     }
 
     function test_ImmutableVariables_CannotBeChanged() public {
