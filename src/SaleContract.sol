@@ -20,11 +20,11 @@ contract SaleContract is Ownable, ReentrancyGuard {
     //                           STATE
     // =============================================================
 
-    ERC20 public immutable G_TOKEN;
+    ERC20 public immutable gToken;
     address public treasury;
 
     uint256 public tokensSold;
-    uint256 public totalTokensForSale;
+    uint256 public immutable totalTokensForSale;
 
     // Mapping to prevent a user from buying more than once
     mapping(address => bool) public hasBought;
@@ -47,7 +47,9 @@ contract SaleContract is Ownable, ReentrancyGuard {
     uint256 public constant STAGE2_TOKEN_LIMIT = 630_000 * 1e18; // 210k + 420k
     uint256 public constant TOTAL_TOKEN_LIMIT = 1_050_000 * 1e18; // Stage 1 + 2 + 3
 
-    // Base prices for each stage are now calculated based on the slopes of previous stages
+    // Base prices for each stage are calculated using the slopes with proper precision
+    // Formula: base_price = initial_price + (tokens_sold * slope_increase_per_10k_tokens) / 10_000
+    // where slope_increase_per_10k_tokens is in USD (6 decimals)
     uint256 public constant STAGE2_BASE_PRICE_USD = INITIAL_PRICE_USD + (STAGE1_TOKEN_LIMIT * STAGE1_SLOPE) / PRECISION;
     uint256 public constant STAGE3_BASE_PRICE_USD = STAGE2_BASE_PRICE_USD + ((STAGE2_TOKEN_LIMIT - STAGE1_TOKEN_LIMIT) * STAGE2_SLOPE) / PRECISION;
     uint256 public constant CEILING_PRICE_USD = STAGE3_BASE_PRICE_USD + ((TOTAL_TOKEN_LIMIT - STAGE2_TOKEN_LIMIT) * STAGE3_SLOPE) / PRECISION;
@@ -65,7 +67,9 @@ contract SaleContract is Ownable, ReentrancyGuard {
     // =============================================================
 
     constructor(address _gTokenAddress, address _initialTreasury, address _initialOwner) Ownable(_initialOwner) {
-        G_TOKEN = ERC20(_gTokenAddress);
+        require(_gTokenAddress != address(0), "Zero address");
+        require(_initialTreasury != address(0), "Zero address");
+        gToken = ERC20(_gTokenAddress);
         treasury = _initialTreasury;
         totalTokensForSale = TOTAL_TOKEN_LIMIT;
     }
@@ -101,12 +105,13 @@ contract SaleContract is Ownable, ReentrancyGuard {
 
     /**
      * @notice Main function to purchase GTokens.
-     * @param _usdAmount The amount in USD (with 6 decimals) the user wants to spend.
-     * @param _paymentToken The address of the ERC20 token to pay with (e.g., USDC, USDT, WBTC).
+     * @param usdAmount The amount in USD (with 6 decimals) the user wants to spend.
+     * @param paymentToken The address of the ERC20 token to pay with (e.g., USDC, USDT, WBTC).
+     * @param signature The EIP-712 signature for whitelist verification (currently unused).
      *
      * TODO: Implement the full logic for the function.
      */
-    function buyTokens(uint256 _usdAmount, address _paymentToken, bytes calldata /* _signature */)
+    function buyTokens(uint256 usdAmount, address paymentToken, bytes calldata signature)
         external
         payable
         nonReentrant
@@ -120,30 +125,29 @@ contract SaleContract is Ownable, ReentrancyGuard {
         // 3. Verify the signature from the off-chain service
         // TODO: Implement EIP-712 signature verification.
         // The signature should verify the buyer (msg.sender) and the max USD amount they are allowed to spend.
-        // require(verifySignature(msg.sender, _usdAmount, _signature), "Invalid signature");
+        // require(verifySignature(msg.sender, usdAmount, signature), "Invalid signature");
 
         // 4. Calculate GToken amount to be received
         // TODO: For simplicity, this example uses current price. A real implementation
         // should integrate over the curve for large purchases.
         uint256 currentPrice = getCurrentPriceUSD();
-        uint256 gTokenAmount = (_usdAmount * 1e18) / currentPrice;
+        uint256 gTokenAmount = (usdAmount * 1e18) / currentPrice;
         require(tokensSold + gTokenAmount <= totalTokensForSale, "Purchase exceeds available tokens");
 
         // 5. Handle payment
-        // TODO: Use a Chainlink price feed to convert _usdAmount to the equivalent
-        // amount of _paymentToken. For ETH, use msg.value.
-        // For this placeholder, we assume _paymentToken is USDC (6 decimals) and 1:1 with USD.
-        ERC20 paymentERC20 = ERC20(_paymentToken);
-        paymentERC20.safeTransferFrom(msg.sender, treasury, _usdAmount);
+        // TODO: Use a Chainlink price feed to convert usdAmount to the equivalent
+        // amount of paymentToken. For this example, we assume paymentToken is USDC (6 decimals) and 1:1 with USD.
+        ERC20 paymentERC20 = ERC20(paymentToken);
+        paymentERC20.safeTransferFrom(msg.sender, treasury, usdAmount);
 
         // 6. Update state
         tokensSold += gTokenAmount;
         hasBought[msg.sender] = true;
 
         // 7. Transfer GTokens
-        G_TOKEN.safeTransfer(msg.sender, gTokenAmount);
+        gToken.safeTransfer(msg.sender, gTokenAmount);
 
-        emit TokensPurchased(msg.sender, gTokenAmount, _usdAmount);
+        emit TokensPurchased(msg.sender, gTokenAmount, usdAmount);
     }
 
 
@@ -151,15 +155,27 @@ contract SaleContract is Ownable, ReentrancyGuard {
     //                        ADMIN FUNCTIONS
     // =============================================================
 
-    function setWhitelistVerifier(address _newVerifier) external onlyOwner {
-        whitelistVerifier = _newVerifier;
-        emit WhitelistVerifierUpdated(_newVerifier);
+    function setWhitelistVerifier(address newVerifier) external onlyOwner {
+        require(newVerifier != address(0), "Zero address");
+        whitelistVerifier = newVerifier;
+        emit WhitelistVerifierUpdated(newVerifier);
     }
 
-    function setTreasury(address _newTreasury) external onlyOwner {
-        require(_newTreasury != address(0), "Zero address");
-        treasury = _newTreasury;
-        emit TreasuryUpdated(_newTreasury);
+    function setTreasury(address newTreasury) external onlyOwner {
+        require(newTreasury != address(0), "Zero address");
+        treasury = newTreasury;
+        emit TreasuryUpdated(newTreasury);
+    }
+
+    /**
+     * @notice Withdraw any accumulated ETH to the treasury.
+     */
+    function withdrawEther() external onlyOwner {
+        uint256 balance = address(this).balance;
+        if (balance > 0) {
+            (bool success, ) = treasury.call{value: balance}("");
+            require(success, "Ether transfer failed");
+        }
     }
 
     /**
@@ -167,9 +183,9 @@ contract SaleContract is Ownable, ReentrancyGuard {
      * the owner can withdraw them back to the treasury.
      */
     function withdrawUnsoldTokens() external onlyOwner {
-        uint256 remaining = G_TOKEN.balanceOf(address(this));
+        uint256 remaining = gToken.balanceOf(address(this));
         if (remaining > 0) {
-            G_TOKEN.safeTransfer(treasury, remaining);
+            gToken.safeTransfer(treasury, remaining);
         }
     }
 }

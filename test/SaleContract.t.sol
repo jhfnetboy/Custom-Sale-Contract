@@ -69,7 +69,7 @@ contract SaleContractTest is Test {
 
     function test_InitialState() public view {
         assertEq(saleContract.owner(), owner);
-        assertEq(address(saleContract.G_TOKEN()), address(gToken));
+        assertEq(address(saleContract.gToken()), address(gToken));
         assertEq(saleContract.treasury(), treasury);
         assertEq(saleContract.whitelistVerifier(), verifier);
         assertEq(saleContract.tokensSold(), 0);
@@ -181,6 +181,118 @@ contract SaleContractTest is Test {
         vm.prank(owner); // Added missing prank
         saleContract.withdrawUnsoldTokens();
         assertEq(gToken.balanceOf(treasury), ownerBalanceBefore + 1000 * 1e18);
+    }
+
+    // =============================================
+    // SECTION 4: Security Tests (High Priority Fixes)
+    // =============================================
+
+    function test_Constructor_ZeroAddressRevert() public {
+        vm.expectRevert("Zero address");
+        new SaleContract(address(0), treasury, owner);
+
+        vm.expectRevert("Zero address");
+        new SaleContract(address(gToken), address(0), owner);
+    }
+
+    function test_SetWhitelistVerifier_ZeroAddressRevert() public {
+        vm.prank(owner);
+        vm.expectRevert("Zero address");
+        saleContract.setWhitelistVerifier(address(0));
+    }
+
+    function test_SetTreasury_ZeroAddressRevert() public {
+        address newTreasury = makeAddr("newTreasury");
+        vm.prank(owner);
+        saleContract.setTreasury(newTreasury);
+        assertEq(saleContract.treasury(), newTreasury);
+
+        vm.expectRevert("Zero address");
+        vm.prank(owner);
+        saleContract.setTreasury(address(0));
+    }
+
+    function test_WithdrawEther_Success() public {
+        // Send ether to contract
+        vm.deal(address(saleContract), 1 ether);
+        uint256 treasuryBefore = treasury.balance;
+
+        vm.prank(owner);
+        saleContract.withdrawEther();
+
+        assertEq(treasury.balance, treasuryBefore + 1 ether);
+        assertEq(address(saleContract).balance, 0);
+    }
+
+    function test_WithdrawEther_NoEtherRevert() public {
+        // Should not revert even with no ether
+        vm.prank(owner);
+        saleContract.withdrawEther();
+    }
+
+    function test_WithdrawEther_Unauthorized() public {
+        vm.deal(address(saleContract), 1 ether);
+
+        vm.expectRevert();
+        vm.prank(user1);
+        saleContract.withdrawEther();
+    }
+
+    function test_PriceCalculations_HighPrecision() public {
+        // Test that fixed precision calculations are accurate
+        // Stage 1: 0 tokens sold = $1.00
+        assertEq(saleContract.getCurrentPriceUSD(), 1_000_000);
+
+        // Stage 1: 210,000 tokens sold = $1.00 + (210,000 * 25,000) / 10,000 = $1.00 + 525,000 = $1.525
+        setTokensSold(STAGE1_TOKEN_LIMIT);
+        assertEq(saleContract.getCurrentPriceUSD(), 1_525_000);
+
+        // Stage 2 boundary: 630,000 tokens sold
+        // Stage 2 price at boundary: $1.525 + ((630k-210k) * 50,000) / 10,000 = $1.525 + 2,100,000 = $3.625
+        setTokensSold(STAGE2_TOKEN_LIMIT);
+        assertEq(saleContract.getCurrentPriceUSD(), 3_625_000);
+
+        // Stage 3 boundary: 1,050,000 tokens sold
+        // Stage 3 price at boundary: $3.625 + ((1,050k-630k) * 30,000) / 10,000 = $3.625 + 1,260,000 = $4.885
+        setTokensSold(TOTAL_TOKEN_LIMIT);
+        assertEq(saleContract.getCurrentPriceUSD(), 4_885_000);
+    }
+
+    function test_PriceConsistency_AcrossStages() public {
+        // Test price curve continuity - the price should increase by exactly the slope amount
+        // when crossing stage boundaries
+
+        // Price at end of Stage 1
+        setTokensSold(STAGE1_TOKEN_LIMIT - 1);
+        uint256 priceAtEndOfStage1 = saleContract.getCurrentPriceUSD();
+
+        // Price at start of Stage 2 (at boundary)
+        setTokensSold(STAGE1_TOKEN_LIMIT);
+        uint256 priceAtStartOfStage2 = saleContract.getCurrentPriceUSD();
+
+        // The difference should be minimal since we moved just 1 token
+        // The slope calculation: price_increase = (1 * 25_000 * PRECISION) / (10_000 * 1e18)
+        // Which simplifies to approximately 1 wei of USD price
+        uint256 priceDiff = priceAtStartOfStage2 - priceAtEndOfStage1;
+        assertEq(priceDiff, 1); // Minimal increase for 1 token crossing the boundary
+    }
+
+    function test_ImmutableVariables_CannotBeChanged() public {
+        // totalTokensForSale should be immutable
+        assertEq(saleContract.totalTokensForSale(), TOTAL_TOKEN_LIMIT);
+        // Cannot be changed as it's immutable - this is verified at compilation time
+    }
+
+    function test_BuyTokens_ParameterNamesMatched() public {
+        uint256 usdAmount = 3000 * 1e6; // $3000
+
+        vm.startPrank(user1);
+        usdc.approve(address(saleContract), usdAmount);
+        // This should work with updated parameter names
+        saleContract.buyTokens(usdAmount, address(usdc), "");
+        vm.stopPrank();
+
+        assertTrue(saleContract.hasBought(user1));
     }
 
     // Helper function to allow `setTokensSold` for testing
