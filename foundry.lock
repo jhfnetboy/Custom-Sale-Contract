@@ -5,10 +5,28 @@
   "lib/forge-std": {
     "rev": "bf6606142994b1e47e2882ce0cd477c020d77623"
   },
+  "lib/juice-contracts-v3": {
+    "rev": "c754a31e9b0770f6441ffe6a80ea8c48f30ca071"
+  },
+  "lib/juice-docs": {
+    "rev": "8810fb378deb60bda6f4573439d294ec3f1c53e8"
+  },
+  "lib/juice-interface": {
+    "rev": "cb271dac9ae2346500fc1db03aa3a1b6b9765f36"
+  },
+  "lib/juice-subgraph": {
+    "rev": "aafdbb5a99654a6de1f8dbc49fc37920f3cbd68e"
+  },
   "lib/openzeppelin-contracts": {
     "tag": {
       "name": "v5.5.0",
       "rev": "fcbae5394ae8ad52d8e580a3477db99814b9d565"
+    }
+  },
+  "lib/prb-math": {
+    "tag": {
+      "name": "v4.1.0",
+      "rev": "280fc5f77e1b21b9c54013aac51966be33f4a410"
     }
   },
   "lib/solady": {
