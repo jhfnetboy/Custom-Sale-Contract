@@ -22,3 +22,6 @@
 [submodule "lib/juice-subgraph"]
 	path = lib/juice-subgraph
 	url = https://github.com/jbx-protocol/juice-subgraph
+[submodule "lib/juice-docs"]
+	path = lib/juice-docs
+	url = https://github.com/jbx-protocol/juice-docs

@@ -1,6 +1,7 @@
 @juicebox-protocol/juice-contracts-v3/=lib/juice-contracts-v3/
 @juicebox-protocol/juice-interface/=lib/juice-interface/
 @juicebox-protocol/juice-subgraph/=lib/juice-subgraph/
+@juicebox-protocol/juice-docs/=lib/juice-docs/
 @openzeppelin/=lib/openzeppelin-contracts/
 @solady/=lib/solady/
 @solmate/=lib/solmate/
