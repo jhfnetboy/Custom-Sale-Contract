@@ -1,4 +1,5 @@
 # lib
+lib/*
 /lib/openzeppelin-contracts
 # Compiler files
 cache/
