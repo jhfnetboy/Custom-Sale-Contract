@@ -26,10 +26,10 @@
 
 ### 📋 任务清单
 
-#### 1.1 治理代币合约 (CommunityToken.sol) - 3天
+#### 1.1 治理代币合约 (GovernanceToken.sol) - 3天
 **现状**: 无独立的治理代币合约
-**目标**: 创建符合ERC20Votes标准的治理代币
-**技术栈**: OpenZeppelin Contracts v5.x
+**目标**: 创建符合ERC20Votes标准的治理代币，使用OpenZeppelin Governor + ERC20Votes
+**技术栈**: OpenZeppelin Contracts v5.x（最新是5.x么？）
 
 ```solidity
 // 核心功能:
@@ -37,7 +37,8 @@
 - ERC20Permit (无Gas签名)
 - ERC20Votes (治理投票)
 - 总量控制: 21,000,000
-- 一次性铸造给销售合约
+- 一次性铸造给销售合约，进行初始化分配：销售合约获得20%（获得初始化资金和fair launch），HyperCapital公司获得20%（获得商业投资和商业绑定），社区国库获得60%（为使用者和生态贡献者提供规则分配）
+- 合约参考 SuperPaymaster repo的GToken和GTokenStaking合约，是Governance Token的未来使用场景之一。https://vscode.dev/github/AAStarCommunity/SuperPaymaster/blob/stable-v2/contracts/src/paymasters/v3/core/GTokenStaking.sol，  https://vscode.dev/github/AAStarCommunity/SuperPaymaster/blob/stable-v2/contracts/src/paymasters/v3/interfaces/IGTokenStakingV3.sol，https://vscode.dev/github/AAStarCommunity/SuperPaymaster/blob/stable-v2/contracts/src/paymasters/v3/core/GTokenStaking.sol
 ```
 
 **验收标准**:
@@ -48,8 +49,9 @@
 
 #### 1.2 升级SaleContract架构 - 5天
 **现状**: 现有的SaleContract.sol比较基础
-**目标**: 基于Thirdweb Drop逻辑重构销售合约
+**目标**: 基于Thirdweb Drop逻辑重构销售合约，尽力以ThirdWeb为基础，少改动，模块化改动，保障安全和极端情况安全。
 **技术栈**: 参考Thirdweb DropERC20 + OpenZeppelin
+
 
 **核心改进**:
 ```solidity
