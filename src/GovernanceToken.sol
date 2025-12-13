@@ -11,12 +11,21 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @notice ERC20 token with governance capabilities for the Custom Sale Contract ecosystem
  * @dev Extends ERC20 with voting, permit, and ownership features
  *
+ * Design Approach:
+ * - Core implementation based on OpenZeppelin ERC20Votes standard
+ * - Interface design references SuperPaymaster GToken and GTokenStaking contracts
+ * - Future staking integration will follow IGTokenStakingV3 interface pattern
+ *
  * Token Distribution:
  * - 20% (4,200,000 tokens): Sale Contract (for fair launch and initial funding)
  * - 20% (4,200,000 tokens): HyperCapital Company (for commercial investment and alignment)
  * - 60% (12,600,000 tokens): Community Treasury (for users and ecosystem contributors)
  *
  * Total Supply: 21,000,000 tokens
+ *
+ * Reference Contracts:
+ * - GTokenStaking: https://vscode.dev/github/AAStarCommunity/SuperPaymaster/blob/stable-v2/contracts/src/paymasters/v3/core/GTokenStaking.sol
+ * - IGTokenStakingV3: https://vscode.dev/github/AAStarCommunity/SuperPaymaster/blob/stable-v2/contracts/src/paymasters/v3/interfaces/IGTokenStakingV3.sol
  */
 contract GovernanceToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
     // Token constants
