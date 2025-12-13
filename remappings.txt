@@ -1,9 +1,6 @@
-# Juicebox protocol submodules
 @juicebox-protocol/juice-contracts-v3/=lib/juice-contracts-v3/
 @juicebox-protocol/juice-interface/=lib/juice-interface/
 @juicebox-protocol/juice-subgraph/=lib/juice-subgraph/
-
-# Existing libraries
 @openzeppelin/=lib/openzeppelin-contracts/
 @solady/=lib/solady/
 @solmate/=lib/solmate/
