@@ -13,3 +13,12 @@
 [submodule "lib/solmate"]
 	path = lib/solmate
 	url = https://github.com/transmissions11/solmate
+[submodule "lib/juice-contracts-v3"]
+	path = lib/juice-contracts-v3
+	url = https://github.com/jbx-protocol/juice-contracts-v3.git
+[submodule "lib/juice-interface"]
+	path = lib/juice-interface
+	url = https://github.com/jbx-protocol/juice-interface
+[submodule "lib/juice-subgraph"]
+	path = lib/juice-subgraph
+	url = https://github.com/jbx-protocol/juice-subgraph
